@@ -11,7 +11,7 @@ defineProps<{ score: number; total: number; percent: number; message: string }>(
         <div class="mb-6 text-xl font-semibold text-green-700">{{ message }}</div>
         <div class="mt-8 flex justify-center gap-4">
             <a
-                href="/exam"
+                href="/exam/select"
                 class="rounded-full bg-gradient-to-r from-blue-600 to-blue-400 px-6 py-3 font-bold text-white shadow-lg transition hover:from-blue-700 hover:to-blue-500"
                 >Try another exam</a
             >

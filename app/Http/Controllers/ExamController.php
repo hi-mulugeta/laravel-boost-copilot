@@ -8,11 +8,22 @@ use Inertia\Inertia;
 
 class ExamController extends Controller
 {
-    public function show(): \Inertia\Response
+
+    public function selectLevel(): \Inertia\Response
     {
-        $exam = Exam::with('questions')->first();
+        return Inertia::render('Exam/SelectLevel');
+    }
+
+    public function show(Request $request): \Inertia\Response
+    {
+        $level = $request->query('level');
+        if (!$level) {
+            return Inertia::render('Exam/SelectLevel');
+        }
+        $exam = Exam::with('questions')->where('level', $level)->first();
         return Inertia::render('Exam/Show', [
             'exam' => $exam,
+            'level' => $level,
         ]);
     }
 
