@@ -20,11 +20,59 @@ class ExamController extends Controller
         if (!$level) {
             return Inertia::render('Exam/SelectLevel');
         }
-        $exam = Exam::with('questions')->where('level', $level)->first();
+        $exam = Exam::where('level', $level)->first();
+        if (!$exam) {
+            return Inertia::render('Exam/EmptyState', [
+                'level' => $level,
+            ]);
+        }
+        // Get 5 random questions for this level
+        $questions = $exam->questions()->inRandomOrder()->limit(5)->get();
+        $exam->setRelation('questions', $questions);
         return Inertia::render('Exam/Show', [
             'exam' => $exam,
             'level' => $level,
         ]);
+    }
+
+    public function manageQuestions(Request $request): \Inertia\Response
+    {
+        $levels = Exam::pluck('level')->unique()->values();
+        return Inertia::render('Exam/ManageQuestions', [
+            'levels' => $levels,
+        ]);
+    }
+
+    public function storeQuestion(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $validated = $request->validate([
+            'exam_id' => ['required', 'exists:exams,id'],
+            'title' => ['required', 'string'],
+            'description' => ['required', 'string'],
+            'choice_a' => ['required', 'string'],
+            'choice_b' => ['required', 'string'],
+            'choice_c' => ['required', 'string'],
+            'choice_d' => ['required', 'string'],
+            'correct_choice' => ['required', 'in:a,b,c,d'],
+        ]);
+        \App\Models\Question::create($validated);
+        return redirect()->back()->with('success', 'Question added successfully!');
+    }
+
+    public function updateQuestion(Request $request, $id): \Illuminate\Http\RedirectResponse
+    {
+        $question = \App\Models\Question::findOrFail($id);
+        $validated = $request->validate([
+            'title' => ['required', 'string'],
+            'description' => ['required', 'string'],
+            'choice_a' => ['required', 'string'],
+            'choice_b' => ['required', 'string'],
+            'choice_c' => ['required', 'string'],
+            'choice_d' => ['required', 'string'],
+            'correct_choice' => ['required', 'in:a,b,c,d'],
+        ]);
+        $question->update($validated);
+        return redirect()->back()->with('success', 'Question updated successfully!');
     }
 
     public function submit(Request $request): \Inertia\Response
