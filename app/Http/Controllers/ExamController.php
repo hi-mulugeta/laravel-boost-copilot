@@ -38,8 +38,12 @@ class ExamController extends Controller
     public function manageQuestions(Request $request): \Inertia\Response
     {
         $levels = Exam::pluck('level')->unique()->values();
+        $exams = Exam::all();
+        $questions = \App\Models\Question::all();
         return Inertia::render('Exam/ManageQuestions', [
             'levels' => $levels,
+            'exams' => $exams,
+            'questions' => $questions,
         ]);
     }
 

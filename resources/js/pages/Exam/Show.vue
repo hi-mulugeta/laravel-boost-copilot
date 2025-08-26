@@ -22,9 +22,33 @@ interface Exam {
 const props = defineProps<{ exam: Exam }>();
 const answers = reactive<Record<number, string>>({});
 
-const current = ref(0);
-const total = props.exam.questions.length;
+// Only 5 random questions
+const shuffledQuestions = ref<Array<Question>>([]);
+const current = ref<number>(0);
+const total = ref<number>(5);
 const transitioning = ref(false);
+
+function shuffle(array: Question[]): Question[] {
+    // Fisher-Yates shuffle
+    const arr = array.slice();
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+onMounted(() => {
+    shuffledQuestions.value = shuffle(props.exam.questions).slice(0, 5);
+    total.value = shuffledQuestions.value.length;
+    interval = window.setInterval(() => {
+        if (timer.value > 0) {
+            timer.value--;
+        } else {
+            autoSubmit();
+        }
+    }, 1000);
+});
 
 // Timer logic
 const timer = ref(180); // 3 minutes in seconds
@@ -61,12 +85,15 @@ onUnmounted(() => {
 });
 
 function next() {
-    if (current.value < total - 1) {
+    if (current.value < total.value - 1) {
         transitioning.value = true;
         setTimeout(() => {
-            current.value++;
+            // Defensive: only increment if next question exists
+            if (shuffledQuestions.value[current.value + 1]) {
+                current.value++;
+            }
             transitioning.value = false;
-        }, 200);
+        }, 400);
     }
 }
 
@@ -74,18 +101,29 @@ function prev() {
     if (current.value > 0) {
         transitioning.value = true;
         setTimeout(() => {
-            current.value--;
+            // Defensive: only decrement if previous question exists
+            if (shuffledQuestions.value[current.value - 1]) {
+                current.value--;
+            }
             transitioning.value = false;
-        }, 200);
+        }, 400);
     }
 }
 
 function submit() {
     timerActive.value = false;
     if (interval) clearInterval(interval);
+    // Calculate score out of 5
+    let score = 0;
+    shuffledQuestions.value.forEach((q: Question) => {
+        if (q && answers[q.id] === q.correct_choice) score++;
+    });
     router.post('/exam/submit', {
         exam_id: props.exam.id,
         answers,
+        score,
+        total: shuffledQuestions.value.length,
+        question_ids: shuffledQuestions.value.map((q) => q.id),
     });
 }
 </script>
@@ -109,8 +147,8 @@ function submit() {
                 <div class="mb-2 text-center text-sm font-medium text-gray-500" aria-label="Progress">
                     <span>Question {{ current + 1 }} of {{ total }}</span>
                 </div>
-                <transition name="fade" mode="out-in">
-                    <div v-if="!transitioning" key="question-card" class="mb-6">
+                <Transition name="fade" mode="out-in" appear>
+                    <div :key="current" v-if="shuffledQuestions[current]">
                         <div class="mb-4 flex items-center justify-between">
                             <span class="rounded-full bg-blue-100 px-3 py-1 text-base font-medium text-blue-600 shadow"
                                 >Question {{ current + 1 }} of {{ total }}</span
@@ -138,10 +176,10 @@ function submit() {
                         </div>
                         <div class="rounded-xl border border-blue-200 bg-white p-4 shadow-lg md:p-6">
                             <h2 class="mb-2 text-xl font-bold text-blue-700 md:text-2xl" aria-label="Question Title">
-                                {{ props.exam.questions[current].title }}
+                                {{ shuffledQuestions[current].title }}
                             </h2>
                             <p class="mb-4 text-base text-gray-700 md:text-lg" aria-label="Question Description">
-                                {{ props.exam.questions[current].description }}
+                                {{ shuffledQuestions[current].description }}
                             </p>
                             <div class="grid gap-3 md:gap-4">
                                 <label
@@ -151,20 +189,24 @@ function submit() {
                                 >
                                     <input
                                         type="radio"
-                                        :name="`q${props.exam.questions[current].id}`"
-                                        v-model="answers[props.exam.questions[current].id]"
+                                        :name="`q${shuffledQuestions[current].id}`"
+                                        v-model="answers[shuffledQuestions[current].id]"
                                         :value="choice"
                                         class="h-5 w-5 accent-blue-600 focus:ring-2 focus:ring-blue-300"
                                         aria-label="Answer Choice"
                                     />
                                     <span class="text-base font-medium text-gray-900 md:text-lg">{{
-                                        (props.exam.questions[current] as any)[`choice_${choice}`]
+                                        (shuffledQuestions[current] as any)[`choice_${choice}`]
                                     }}</span>
                                 </label>
                             </div>
                         </div>
                     </div>
-                </transition>
+                    <div v-else class="rounded-xl border border-red-200 bg-red-50 p-6 text-center shadow-lg">
+                        <h2 class="mb-2 text-xl font-bold text-red-700">No questions available for this exam.</h2>
+                        <p class="mb-4 text-base text-gray-700">Please contact the administrator or try another exam level.</p>
+                    </div>
+                </Transition>
                 <div class="mt-6 flex items-center justify-between">
                     <div class="flex-1">
                         <div class="h-3 rounded-full bg-gray-200">
@@ -187,3 +229,18 @@ function submit() {
         </form>
     </div>
 </template>
+
+<style>
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+}
+.fade-enter-to,
+.fade-leave-from {
+    opacity: 1;
+}
+</style>

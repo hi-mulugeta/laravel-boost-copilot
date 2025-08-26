@@ -40,5 +40,8 @@ function startExam() {
             Start Exam
         </button>
         <div class="animate-fade-in mt-6 text-xs text-gray-400 md:text-sm">No signup required. Just pick your level and go!</div>
+        <div class="mt-4">
+            <a href="/questions/manage" class="text-blue-600 hover:underline">Manage Questions</a>
+        </div>
     </div>
 </template>
